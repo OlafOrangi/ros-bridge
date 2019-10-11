@@ -27,6 +27,9 @@ import carla_ros_bridge.transforms as transforms
 from carla_msgs.msg import CarlaEgoVehicleInfo, CarlaEgoVehicleInfoWheel,\
     CarlaEgoVehicleControl, CarlaEgoVehicleStatus
 
+from shape_msgs.msg import SolidPrimitive
+import coordinate_converter
+
 
 class EgoVehicle(Vehicle):
 
@@ -48,11 +51,15 @@ class EgoVehicle(Vehicle):
         super(EgoVehicle, self).__init__(carla_actor=carla_actor,
                                          parent=parent,
                                          communication=communication,
-                                         prefix=carla_actor.attributes.get('role_name'))
+                                         prefix=carla_actor.attributes.get('role_name') + "/{:03}".format(carla_actor.id))
+
+        # MOD
+        self.shape_published = False
 
         self.vehicle_info_published = False
         self.vehicle_control_override = False
         self._vehicle_control_applied_callback = vehicle_control_applied_callback
+        self.actor_prefix = self.get_topic_prefix() + "/{:03}".format(carla_actor.id)
 
         self.control_subscriber = rospy.Subscriber(
             self.get_topic_prefix() + "/vehicle_control_cmd",
@@ -100,10 +107,10 @@ class EgoVehicle(Vehicle):
         vehicle_status = CarlaEgoVehicleStatus(
             header=self.get_msg_header("map"))
         vehicle_status.velocity = self.get_vehicle_speed_abs(self.carla_actor)
-        vehicle_status.acceleration.linear = transforms.carla_vector_to_ros_vector_rotated(
+        vehicle_status.acceleration.linear = coordinate_converter.convert_vector3(transforms.carla_vector_to_ros_vector_rotated(
             self.carla_actor.get_acceleration(),
-            self.carla_actor.get_transform().rotation)
-        vehicle_status.orientation = self.get_current_ros_pose().orientation
+            self.carla_actor.get_transform().rotation))
+        vehicle_status.orientation = coordinate_converter.convert_quaternion(self.get_current_ros_pose().orientation)
         vehicle_status.control.throttle = self.carla_actor.get_control().throttle
         vehicle_status.control.steer = self.carla_actor.get_control().steer
         vehicle_status.control.brake = self.carla_actor.get_control().brake
@@ -147,6 +154,18 @@ class EgoVehicle(Vehicle):
             vehicle_info.center_of_mass.z = vehicle_physics.center_of_mass.z
 
             self.publish_message(self.get_topic_prefix() + "/vehicle_info", vehicle_info, True)
+
+        # MOD: send vehicle shape (only publish once)
+        if not self.shape_published:
+            self.shape_published = True
+            shape = SolidPrimitive()
+            shape.type = SolidPrimitive.BOX
+            shape.dimensions = [self.carla_actor.bounding_box.extent.x * 2,
+                                self.carla_actor.bounding_box.extent.y * 2,
+                                self.carla_actor.bounding_box.extent.z * 2]
+
+            self.publish_message(self.get_topic_prefix() + "/shape", shape, True)
+
 
     def update(self, frame, timestamp):
         """

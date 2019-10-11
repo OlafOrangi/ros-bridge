@@ -10,9 +10,11 @@ Class to draw marker
 """
 import math
 import rospy
+from geometry_msgs.msg import Vector3
 from visualization_msgs.msg import Marker, MarkerArray
 from tf.transformations import euler_from_quaternion
 import carla
+import coordinate_converter
 
 
 class DebugHelper(object):
@@ -86,6 +88,10 @@ class DebugHelper(object):
                 return
             thickness = marker.scale.x
             arrow_size = marker.scale.y
+
+            for i, point in marker.points:
+                marker.points[i] = coordinate_converter.convert_point(point)
+
             start = carla.Location(
                 x=marker.points[0].x, y=-marker.points[0].y, z=marker.points[0].z)
             end = carla.Location(
@@ -111,6 +117,7 @@ class DebugHelper(object):
         draw points from ros marker
         """
         for point in marker.points:
+            point = coordinate_converter.convert_point(point)
             location = carla.Location(x=point.x, y=-point.y, z=point.z)
             size = marker.scale.x
             rospy.loginfo("Draw Point {} (color: {}, lifetime: {}, size: {})".format(
@@ -129,6 +136,7 @@ class DebugHelper(object):
         last_point = None
         thickness = marker.scale.x
         for point in marker.points:
+            point = coordinate_converter.convert_point(point)
             if last_point:
                 start = carla.Location(x=last_point.x, y=-last_point.y, z=last_point.z)
                 end = carla.Location(x=point.x, y=-point.y, z=point.z)
@@ -148,6 +156,7 @@ class DebugHelper(object):
         draw box from ros marker
         """
         box = carla.BoundingBox()
+        marker.pose = coordinate_converter.convert_pose(marker.pose)
         box.location.x = marker.pose.position.x
         box.location.y = -marker.pose.position.y
         box.location.z = marker.pose.position.z
@@ -165,6 +174,10 @@ class DebugHelper(object):
         rotation.roll = math.degrees(roll)
         rotation.pitch = math.degrees(pitch)
         rotation.yaw = -math.degrees(yaw)
+        rotxyz = coordinate_converter.convert_euler(Vector3(rotation.roll, rotation.pitch, rotation.yaw))
+        rotation.roll = rotxyz.x
+        rotation.pitch = rotxyz.y
+        rotation.yaw = rotxyz.z
         rospy.loginfo("Draw Box {} (rotation: {}, color: {}, lifetime: {})".format(
             box, rotation, color, lifetime))
         self.debug.draw_box(box, rotation, thickness=0.1, color=color, life_time=lifetime)

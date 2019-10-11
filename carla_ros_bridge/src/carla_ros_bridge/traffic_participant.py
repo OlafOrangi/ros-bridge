@@ -15,6 +15,7 @@ from nav_msgs.msg import Odometry
 from shape_msgs.msg import SolidPrimitive
 
 from carla_ros_bridge.actor import Actor
+import coordinate_converter
 
 
 class TrafficParticipant(Actor):
@@ -67,8 +68,9 @@ class TrafficParticipant(Actor):
         """
         odometry = Odometry(header=self.get_msg_header("map"))
         odometry.child_frame_id = self.get_prefix()
-        odometry.pose.pose = self.get_current_ros_pose()
-        odometry.twist.twist = self.get_current_ros_twist()
+        odometry.pose.pose = coordinate_converter.convert_pose(self.get_current_ros_pose())
+        odometry.twist.twist.linear = coordinate_converter.convert_vector3(self.get_current_ros_twist().linear)
+        odometry.twist.twist.angular = coordinate_converter.convert_vector3(self.get_current_ros_twist().angular)
         self.publish_message(self.get_topic_prefix() + "/odometry", odometry)
 
     def get_object_info(self):

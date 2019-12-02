@@ -4,6 +4,7 @@ project(rqt_carla_control)
 find_package(catkin REQUIRED COMPONENTS
   rospy
   rqt_gui_py
+  roslaunch
 )
 
 catkin_python_setup()

@@ -10,24 +10,19 @@
 Classes to handle Carla vehicles
 """
 import math
-import numpy
 
-import rospy
-
-from std_msgs.msg import ColorRGBA
-from std_msgs.msg import Bool
-from geometry_msgs.msg import Twist
-
-from carla import VehicleControl
-from carla import Vector3D
-
-from carla_ros_bridge.vehicle import Vehicle
 import carla_ros_bridge.transforms as transforms
-
-from carla_msgs.msg import CarlaEgoVehicleInfo, CarlaEgoVehicleInfoWheel,\
+import numpy
+import rospy
+from carla import Vector3D
+from carla import VehicleControl
+from carla_msgs.msg import CarlaEgoVehicleInfo, CarlaEgoVehicleInfoWheel, \
     CarlaEgoVehicleControl, CarlaEgoVehicleStatus
+from carla_ros_bridge.vehicle import Vehicle
+from geometry_msgs.msg import Twist
+from std_msgs.msg import Bool
+from std_msgs.msg import ColorRGBA
 
-from shape_msgs.msg import SolidPrimitive
 import coordinate_converter
 
 
@@ -52,9 +47,6 @@ class EgoVehicle(Vehicle):
                                          parent=parent,
                                          communication=communication,
                                          prefix=carla_actor.attributes.get('role_name') + "/{:03}".format(carla_actor.id))
-
-        # MOD
-        self.shape_published = False
 
         self.vehicle_info_published = False
         self.vehicle_control_override = False
@@ -154,17 +146,6 @@ class EgoVehicle(Vehicle):
             vehicle_info.center_of_mass.z = vehicle_physics.center_of_mass.z
 
             self.publish_message(self.get_topic_prefix() + "/vehicle_info", vehicle_info, True)
-
-        # MOD: send vehicle shape (only publish once)
-        if not self.shape_published:
-            self.shape_published = True
-            shape = SolidPrimitive()
-            shape.type = SolidPrimitive.BOX
-            shape.dimensions = [self.carla_actor.bounding_box.extent.x * 2,
-                                self.carla_actor.bounding_box.extent.y * 2,
-                                self.carla_actor.bounding_box.extent.z * 2]
-
-            self.publish_message(self.get_topic_prefix() + "/shape", shape, True)
 
 
     def update(self, frame, timestamp):

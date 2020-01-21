@@ -10,10 +10,10 @@
 Classes to handle Carla vehicles
 """
 
-from std_msgs.msg import ColorRGBA
-from derived_object_msgs.msg import Object
-
 from carla_ros_bridge.traffic_participant import TrafficParticipant
+from derived_object_msgs.msg import Object
+from shape_msgs.msg import SolidPrimitive
+from std_msgs.msg import ColorRGBA
 
 
 class Vehicle(TrafficParticipant):
@@ -51,10 +51,14 @@ class Vehicle(TrafficParticipant):
             elif carla_actor.attributes['object_type'] == 'other':
                 self.classification = Object.CLASSIFICATION_OTHER_VEHICLE
 
+
         super(Vehicle, self).__init__(carla_actor=carla_actor,
                                       parent=parent,
                                       communication=communication,
                                       prefix=prefix)
+
+        # MOD
+        self.publish_shape()
 
     def update(self, frame, timestamp):
         """
@@ -90,3 +94,14 @@ class Vehicle(TrafficParticipant):
         :return:
         """
         return self.classification
+
+    # MOD
+    def publish_shape(self):
+        # send vehicle shape (only publish once)
+        shape = SolidPrimitive()
+        shape.type = SolidPrimitive.BOX
+        shape.dimensions = [self.carla_actor.bounding_box.extent.x * 2,
+                            self.carla_actor.bounding_box.extent.y * 2,
+                            self.carla_actor.bounding_box.extent.z * 2]
+
+        self.publish_message(self.get_topic_prefix() + "/shape", shape, True)
